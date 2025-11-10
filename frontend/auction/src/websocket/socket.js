@@ -15,10 +15,10 @@ class SocketService {
       // For now, we'll use a mock connection since WebSocket setup requires backend changes
       console.log('WebSocket service initialized (mock mode)');
       this.connected = true;
-      
+
       // In a real implementation, you would connect to the WebSocket endpoint
       // this.ws = new WebSocket('ws://localhost:8080/ws');
-      
+
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
       this.connected = false;
@@ -36,7 +36,7 @@ class SocketService {
     // Store the callback for when we receive bid updates
     this.subscriptions.set(`bid_${itemId}`, callback);
     console.log(`Subscribed to bid updates for item ${itemId}`);
-    
+
     // Mock subscription for now
     this.bidSubscription = { itemId, callback };
     return this.bidSubscription;

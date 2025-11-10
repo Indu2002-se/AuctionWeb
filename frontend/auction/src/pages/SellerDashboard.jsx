@@ -19,7 +19,18 @@ const SellerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [newItem, setNewItem] = useState({
+    name: '',
+    description: '',
+    startingPrice: '',
+    endTime: '',
+    imageUrl: ''
+  });
+  const [editItem, setEditItem] = useState({
+    id: '',
     name: '',
     description: '',
     startingPrice: '',
@@ -84,6 +95,93 @@ const SellerDashboard = () => {
       }
       
       setError(errorMessage);
+    }
+  };
+
+  // Handle View Item
+  const handleViewItem = (item) => {
+    setSelectedItem(item);
+    setShowViewModal(true);
+  };
+
+  // Handle Edit Item
+  const handleEditItem = (item) => {
+    setEditItem({
+      id: item.id,
+      name: item.name,
+      description: item.description,
+      startingPrice: item.startingPrice,
+      endTime: new Date(item.endTime).toISOString().slice(0, 16),
+      imageUrl: item.imageUrl || ''
+    });
+    setShowEditForm(true);
+  };
+
+  // Handle Update Item
+  const handleUpdateItem = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const itemData = {
+        ...editItem,
+        startingPrice: parseFloat(editItem.startingPrice),
+        endTime: new Date(editItem.endTime).toISOString()
+      };
+      
+      await itemService.updateItem(editItem.id, itemData);
+      
+      // Reset form and close modal
+      setEditItem({ id: '', name: '', description: '', startingPrice: '', endTime: '', imageUrl: '' });
+      setShowEditForm(false);
+      
+      // Refresh the items list
+      await fetchMyItems();
+      
+    } catch (error) {
+      let errorMessage = 'Failed to update item';
+      
+      if (error.response?.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+    }
+  };
+
+  // Handle Delete Item
+  const handleDeleteItem = async (item) => {
+    if (window.confirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`)) {
+      try {
+        await itemService.deleteItem(item.id);
+        
+        // Refresh the items list
+        await fetchMyItems();
+        
+      } catch (error) {
+        let errorMessage = 'Failed to delete item';
+        
+        if (error.response?.data) {
+          if (typeof error.response.data === 'string') {
+            errorMessage = error.response.data;
+          } else if (error.response.data.error) {
+            errorMessage = error.response.data.error;
+          } else if (error.response.data.message) {
+            errorMessage = error.response.data.message;
+          }
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        setError(errorMessage);
+      }
     }
   };
 
@@ -223,13 +321,25 @@ const SellerDashboard = () => {
                           {item.bidCount || item.bids?.length || 0} bids
                         </div>
                         <div className="flex space-x-2">
-                          <button className="p-2 text-gray-400 hover:text-blue-600 transition-colors">
+                          <button 
+                            onClick={() => handleViewItem(item)}
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="View Details"
+                          >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-green-600 transition-colors">
+                          <button 
+                            onClick={() => handleEditItem(item)}
+                            className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                            title="Edit Item"
+                          >
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button className="p-2 text-gray-400 hover:text-red-600 transition-colors">
+                          <button 
+                            onClick={() => handleDeleteItem(item)}
+                            className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Delete Item"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
@@ -242,6 +352,179 @@ const SellerDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* View Item Modal */}
+      {showViewModal && selectedItem && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Item Details</h3>
+                <button
+                  onClick={() => setShowViewModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-start space-x-4">
+                  <img
+                    src={selectedItem.imageUrl || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200&h=200&fit=crop'}
+                    alt={selectedItem.name}
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                  <div className="flex-1">
+                    <h4 className="text-2xl font-bold text-gray-900 mb-2">{selectedItem.name}</h4>
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      selectedItem.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
+                      selectedItem.status === 'CLOSED' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {selectedItem.status}
+                    </span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedItem.description}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Starting Price</label>
+                    <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">${selectedItem.startingPrice}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Current Price</label>
+                    <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">${selectedItem.currentPrice || selectedItem.startingPrice}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
+                    <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{new Date(selectedItem.endTime).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Bids</label>
+                    <p className="text-gray-900 bg-gray-50 p-3 rounded-lg">{selectedItem.bidCount || selectedItem.bids?.length || 0}</p>
+                  </div>
+                </div>
+                
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={() => setShowViewModal(false)}
+                    className="flex-1 btn-secondary"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowViewModal(false);
+                      handleEditItem(selectedItem);
+                    }}
+                    className="flex-1 btn-primary"
+                  >
+                    Edit Item
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {showEditForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Auction Item</h3>
+              
+              <form onSubmit={handleUpdateItem} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                  <input
+                    type="text"
+                    required
+                    className="input-field"
+                    placeholder="Enter item name"
+                    value={editItem.name}
+                    onChange={(e) => setEditItem({...editItem, name: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    required
+                    rows={3}
+                    className="input-field"
+                    placeholder="Describe your item"
+                    value={editItem.description}
+                    onChange={(e) => setEditItem({...editItem, description: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Starting Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="input-field"
+                    placeholder="0.00"
+                    value={editItem.startingPrice}
+                    onChange={(e) => setEditItem({...editItem, startingPrice: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Auction End Time</label>
+                  <input
+                    type="datetime-local"
+                    required
+                    className="input-field"
+                    value={editItem.endTime}
+                    onChange={(e) => setEditItem({...editItem, endTime: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image URL (optional)</label>
+                  <input
+                    type="url"
+                    className="input-field"
+                    placeholder="https://example.com/image.jpg"
+                    value={editItem.imageUrl}
+                    onChange={(e) => setEditItem({...editItem, imageUrl: e.target.value})}
+                  />
+                </div>
+                
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditForm(false)}
+                    className="flex-1 btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 btn-primary"
+                  >
+                    Update Item
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Item Modal */}
       {showAddForm && (

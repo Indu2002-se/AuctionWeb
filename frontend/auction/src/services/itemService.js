@@ -21,6 +21,16 @@ export const itemService = {
     return response.data;
   },
 
+  updateItem: async (id, item) => {
+    const response = await axiosInstance.put(`/items/${id}`, item);
+    return response.data;
+  },
+
+  deleteItem: async (id) => {
+    const response = await axiosInstance.delete(`/items/${id}`);
+    return response.data;
+  },
+
   getMyItems: async () => {
     const response = await axiosInstance.get('/items/my-items');
     return response.data;
